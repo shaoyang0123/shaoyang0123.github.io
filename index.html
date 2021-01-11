@@ -1,5 +1,370 @@
-<h1>shaoyang </h1>
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="bootstrap/css/bootstrap.css">
+    <script src=""></script>
+    <script src="bootstrap/js/jquery.js"></script>
+    <script src="bootstrap/js/bootstrap.js"></script>
+    <title>chat</title>
+    <style>
+        html ,body{
+            height: 100%;
+        }
+        .container {
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .container .middle_message {
+            text-align: center;
+            color: rgb(163, 163, 164);
+        }
+        .container .middle_time {
+            text-align: center;
+            color: rgb(163, 163, 164);
+            font-size: small;
+        }
+        .container .list {
+            flex:1;
+            background-color:#f2f2f2;
+            overflow-y: scroll;
+        }
+        .container .list .self_message {
+            display: flex;
+            margin: .3rem 0;
+        }
+        .container .list .self_message :nth-child(2) {
+            flex:4;
+            justify-content:left;
+            display: flex;
+            padding: .5rem;
+        }
+        .container .list .self_message span {
+            flex:1;
+            overflow: hidden;
+        }
+        .container .list .self_message p {
+            padding: .5rem;
+            /* flex:3; */
+            border: rgb(208, 207, 207) solid 1px;
+            word-wrap: break-word;
+            word-break: break-all;
+            overflow: hidden;
+            border-radius: .5rem;
+        }
 
-<div id="">
-	dsfsadfds
-</div>
+        .container .list .other_message {
+            display: flex;
+            margin: .3rem 0;
+            justify-content: right;
+        }
+        .container .list .other_message :nth-child(2) {
+            flex:4;
+            justify-content: right;
+            display: flex;
+            /* background-color: coral; */
+            flex-flow: row-reverse;
+            padding: .5rem;
+        }
+        .container .list .other_message span {
+            flex:1;
+            text-align: right;
+            overflow: hidden;
+        }
+        .container .list .other_message p {
+            float: right;
+            padding: .5rem;
+            border: rgb(208, 207, 207) solid 1px;
+            word-wrap: break-word;
+            word-break: break-all;
+            overflow: hidden;
+            border-radius: .5rem;
+        }
+
+        .bottom_nav {
+            display: flex;
+            flex-direction: row;
+            flex-basis: content;
+            align-content: center;
+        }
+        .bottom_nav .send {
+            margin-left: .3rem;
+        }
+        .bottom_nav label {
+            display: block;
+            margin: 0;
+            padding: 0;
+            background-color: #ccc;
+            text-align: center;
+            
+            width: 1.5rem;
+        }
+
+        .container .title {
+            display: flex;
+            flex-direction: row;
+            text-align: center;
+            height: 4rem;
+            line-height: 4rem;
+            font-weight: bold;
+        }
+        .container .title :nth-child(1){
+            flex: 1;
+        }
+        .container .title :nth-child(2){
+            width: 1rem;
+            margin-top: -0.4rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="title">
+            <div class="sub_title">shaoyang chat (<span id="member_num">0</span>)</div>
+            <div class="member_info" onclick="showMember()">...</div>
+        </div>
+        <div class="list" id="message_list">
+
+        </div>
+    <form>
+        <div class="form-group bottom_nav">
+          <!-- <label for="message">消</label> -->
+          <input type="email" class="form-control" id="message" placeholder="message">
+          <button type="button" class="btn btn-default send" onclick="send()">send</button>
+          <!-- <button type="button" class="btn btn-default send" onclick="other_send()">other send</button> -->
+        </div>
+       
+      </form>
+      </div>
+    
+      <script>
+          var g= {}
+          g.ws = null
+          g.last_time=0
+
+          function init_ws() {
+              // 打开一个WebSocket:
+            // ws = new WebSocket('ws://localhost:9502');
+            ws = new WebSocket('ws://154.85.42.248:9502');
+            
+            // ws.send("client")
+            // 响应onmessage事件:
+            ws.onmessage = function(msg) {
+                console.log(msg);
+
+                let data = JSON.parse(msg.data)
+                if(g.last_time != data.time){
+                    g.last_time = data.time
+                    $("#message_list").append("<div class='middle_time'>"+data.time+"</div>") 
+                }
+                if(data.from ==-1){
+                    if(data.message.event == 'online'){
+                        // 系统回复 -- 新用户上线
+                        $("#message_list").append("<div class='middle_message'>"+data.message.nickname+"上线了</div>")
+                        $("#member_num").html(1+parseInt($("#member_num").html()))
+                        $("#showMember").find("table").append('<tr class="member_'+data.message.nickname+'"><td>'+data.message.nickname+'</td></tr>')
+                    }else if (data.message.event == 'open'){
+                        let len = data.message.data.length
+                        $("#member_num").html(len+parseInt($("#member_num").html()))
+                        // 打开链接获取地址所有的会员信息
+                        for (let i in data.message.data ){
+                            console.log(data.message.data[i])
+                            $("#showMember").find("table").append('<tr class="member_'+data.message.data[i]+'"><td>'+data.message.data[i]+'</td></tr>')
+                        }
+                    }else if(data.message.event == 'offline'){
+                        // 有会员下线
+                        $("#showMember").find("table").find('tr[class=member_'+data.message.nickname+']').remove()
+                        $("#member_num").html(-1+parseInt($("#member_num").html()))
+                        $("#message_list").append("<div class='middle_message'>"+data.message.nickname+"下线了</div>")
+                    }
+                 
+                    return;
+                }
+                otherMessage(data.message,data.from)
+                // $("#message_list").append("<p>"+msg.data+"</p>")
+                // document.getElementById("message_list").appendChild("<p>ssdfasd</p>")
+            
+            };
+            ws.onopen = function(msg){
+                console.log(msg)
+                //["type":"all/one/bind",data:"",from:"",to:""]
+                //  ws.send("bind:client:10001")
+                let nickname = g.userInfo.nickname;
+                let arr = {
+                    "type":"bind",data:nickname,from:"",to:""
+                }
+                ws.send(JSON.stringify(arr))
+            }
+            ws.onclose = function(msg){
+                console.log('close ',msg)
+            }
+            g.ws = ws;
+          }
+          /**
+        // 打开一个WebSocket:
+        var ws = new WebSocket('ws://localhost:9502');
+        
+        // ws.send("client")
+        // 响应onmessage事件:
+        ws.onmessage = function(msg) {
+            console.log(msg);
+            $("#message_list").append("<p>"+msg.data+"</p>")
+            // document.getElementById("message_list").appendChild("<p>ssdfasd</p>")
+        
+         };
+         ws.onopen = function(msg){
+             console.log(msg)
+             //["type":"all/one/bind",data:"",from:"",to:""]
+            //  ws.send("bind:client:10001")
+            let arr = {
+                "type":"bind",data:"10001",from:"",to:""
+            }
+             ws.send(JSON.stringify(arr))
+         }
+         ws.onclose = function(msg){
+             console.log(msg)
+         }
+        // 给服务器发送一个字符串:
+        // ws.send('Hello!');
+*/
+        function send(){
+            if (g.ws == null){
+                // 请先登陆
+                alert("请先登陆")
+                return ;
+            }
+            var content = document.getElementById("message").value;
+            // console.log(content)
+            // ws.send("service:10001:"+content)
+            let nickname = g.userInfo.nickname;
+            let arr = {
+                "type":"all",data:content,from:nickname,to:""
+            }
+            // let arr = {
+            //     "type":"one",data:content,from:nickname,to:"10002"
+            // }
+            selfMessage(content,nickname)
+            if(g.ws){
+                g.ws.send(JSON.stringify(arr))
+            }
+            //  ws.send(JSON.stringify(arr))
+            document.getElementById("message").value = ""
+        }
+
+        function other_send(){
+            var content = document.getElementById("message").value;
+            // console.log(content)
+            // ws.send("service:10001:"+content)
+
+            // let arr = {
+            //     "type":"one",data:content,from:"10001",to:"10002"
+            // }
+            let arr = {
+                "type":"all",data:content,from:"10001",to:""
+            }
+            otherMessage(content)
+            //  ws.send(JSON.stringify(arr))
+            document.getElementById("message").value = ""
+        }
+        function gunBottom(){
+            $("#message_list").scrollTop($("#message_list")[0].scrollHeight);
+        }
+        function selfMessage(content,from){
+            let str = `<div class="self_message">
+                <span>${from}</span>
+                <div><p>${content}
+                </p></div>
+                <label for="" style="flex: 1;"></label>
+            </div>`;
+            $("#message_list").append(str);
+            gunBottom()
+        }
+        function otherMessage(content,from){
+            let str = `<div class="other_message">
+                <label for="" style="flex: 1;"></label>
+                <div>
+                <p>${content}
+                </p>
+                </div>
+                <span>${from}</span>
+            </div>`;
+            $("#message_list").append(str);
+            gunBottom()
+        }
+
+        // 登陆
+        function login(){
+            let nickname = $("#myModal").find('input[name=nickname]').val()
+            let password = $("#myModal").find('input[name=password]').val()
+            if ($.isEmptyObject(nickname) || $.isEmptyObject(password)){
+                alert("请输入昵称和密码")
+                return
+            }
+            g.userInfo = {
+                "nickname":nickname
+            }
+            init_ws()
+            $("#myModal").modal('hide')
+        }
+        // 显示群 成员
+        function showMember() {
+            $("#showMember").modal('show')
+        }
+
+        
+        $(document).ready(function(){
+            $("#myModal").modal('show')
+            // $("#showMember").modal('show')
+        })
+      </script>
+      <div class="modal fade" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                    <h4 class="modal-title" id="myModalLabel">请输入昵称和密码</h4>
+                </div>
+                <div class="modal-body">
+                    <div class="form-group">
+                        <label for="nickname">昵称</label>
+                        <input type="text" class="form-control" name="nickname">
+                    </div>
+                    <div class="form-group">
+                        <label for="password">密码</label>
+                        <input type="text" class="form-control" name="password" value="1">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-primary" onclick="login()">登陆</button>
+                </div>
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal -->
+    </div>
+      <div class="modal fade" id="showMember" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                    <h4 class="modal-title" id="myModalLabel">成员列表</h4>
+                </div>
+                <div class="modal-body">
+                    <table class="table">
+                        <!-- <th>昵称</th> -->
+                        <!-- <tr><td>shaoyang</td></tr>
+                        <tr><td>dabo</td></tr> -->
+                    </table>
+                </div>
+                <!-- <div class="modal-footer">
+                    <button type="button" class="btn btn-default" data-dismiss="modal">关闭</button>
+                    <button type="button" class="btn btn-primary" onclick="login()">登陆</button>
+                </div> -->
+            </div><!-- /.modal-content -->
+        </div><!-- /.modal -->
+    </div>
+
+
+</body>
+</html>

@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="stylesheet" href="bootstrap/css/bootstrap.css">
+    <script src="bootstrap/js/jquery.js"></script>
+    <script src="bootstrap/js/bootstrap.js"></script>
+    <title>service</title>
+</head>
+<body>
+    
+    <div class="container">
+        <div class="list" id="message_list">
+            <p>message</p>
+        </div>
+    <form>
+        <div class="form-group">
+          <label for="exampleInputEmail1">消息</label>
+          <input type="email" class="form-control" id="message" placeholder="message">
+        </div>
+        <button type="button" class="btn btn-default" onclick="send()">Submit</button>
+      </form>
+      </div>
+    
+      <script>
+        // 打开一个WebSocket:
+        var ws = new WebSocket('ws://localhost:9502');
+        // ws.send("service");
+        // 响应onmessage事件:
+        ws.onmessage = function(msg) {
+            console.log(msg);
+            $("#message_list").append("<p>"+msg.data+"</p>")
+            // document.getElementById("message_list").appendChild("<p>ssdfasd</p>")
+        
+         };
+
+         ws.onopen = function(msg){
+             console.log(msg)
+            //  ws.send("bind:service:xxx")
+             let arr = {
+                "type":"bind",data:"10002",from:"",to:""
+            }
+             ws.send(JSON.stringify(arr))
+         }
+        // 给服务器发送一个字符串:
+        // ws.send('Hello!');
+
+        function send(){
+            var content = document.getElementById("message").value;
+            // console.log(content)
+            // ws.send("client:10001:"+content)
+            let arr = {
+                "type":"one",data:content,from:"10002",to:"10001"
+            }
+             ws.send(JSON.stringify(arr))
+            document.getElementById("message").value = ""
+        }
+      </script>
+</body>
+</html>
